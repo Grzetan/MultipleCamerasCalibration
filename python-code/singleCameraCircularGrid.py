@@ -33,25 +33,29 @@ for imgName in images:
 
         cv2.drawChessboardCorners(img, gridSize, corners2, ret)
         cv2.imshow('img', img)
-        cv2.waitKey(0)
+        cv2.waitKey(500)
 
-# cv2.destroyAllWindows()
+cv2.destroyAllWindows()
 
-# ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objPoints, imgPoints, gray.shape[::-1], None, None)
+ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objPoints, imgPoints, gray.shape[::-1], None, None)
 
-# img = cv2.imread('./org/left07.jpg')
-# h, w = img.shape[:2]
-# newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (w,h), 1, (w,h))
+# Save params to files
+np.save('cameraMatrix.npy', mtx)
+np.save('dist.npy', dist)
 
-# dst = cv2.undistort(img, mtx, dist, None, newcameramtx)
-# # crop the image
-# # x, y, w, h = roi
-# # dst = dst[y:y+h, x:x+w]
-# cv2.imwrite('calibresult.png', dst)
+img = cv2.imread('./circles-imgs/1.jpg')
+h, w = img.shape[:2]
+newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (w,h), 1, (w,h))
 
-# mean_error = 0
-# for i in range(len(objPoints)):
-#     imgpoints2, _ = cv2.projectPoints(objPoints[i], rvecs[i], tvecs[i], mtx, dist)
-#     error = cv2.norm(imgPoints[i], imgpoints2, cv2.NORM_L2)/len(imgpoints2)
-#     mean_error += error
-# print( "total error: {}".format(mean_error/len(objPoints)) )
+dst = cv2.undistort(img, mtx, dist, None, newcameramtx)
+# crop the image
+# x, y, w, h = roi
+# dst = dst[y:y+h, x:x+w]
+cv2.imwrite('calibresult.png', dst)
+
+mean_error = 0
+for i in range(len(objPoints)):
+    imgpoints2, _ = cv2.projectPoints(objPoints[i], rvecs[i], tvecs[i], mtx, dist)
+    error = cv2.norm(imgPoints[i], imgpoints2, cv2.NORM_L2)/len(imgpoints2)
+    mean_error += error
+print( "total error: {}".format(mean_error/len(objPoints)) )

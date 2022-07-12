@@ -8,8 +8,6 @@ DIST_PATH = './dist.npy'
 mtx = np.load(CAMERA_MATRIX_PATH, allow_pickle=True)
 dist = np.load(DIST_PATH, allow_pickle=True)
 
-print(mtx, dist)
-
 img = cv2.imread(FILE)
 h, w = img.shape[:2]
 newcameramtx, roi = cv2.getOptimalNewCameraMatrix(mtx, dist, (w,h), 1, (w,h))

@@ -38,7 +38,7 @@ def calibrate(chessboardSize, imgspath, savePath=''):
 if __name__ == '__main__':
     print('OpenCV Version: ', cv2.__version__)
 
-    chessboardSize = (7,6)
+    chessboardSize = (19,13)
 
     ret, mtx, dist, rvecs, tvecs = calibrate(chessboardSize, './org')
 

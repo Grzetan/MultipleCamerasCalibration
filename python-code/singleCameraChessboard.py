@@ -30,7 +30,7 @@ def calibrate(chessboardSize, imgspath, savePath=''):
     print('Calibrated camera with error (Should be less than 0.2): ', ret)
 
     if savePath != '':
-        np.savez(savePath, mtx=mtx, dist=dist, rvecs=rvecs, tvecs=tvecs)
+        np.savez(savePath, mtx=mtx, dist=dist)
 
     return (ret, mtx, dist, rvecs, tvecs)
 

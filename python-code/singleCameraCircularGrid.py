@@ -4,16 +4,16 @@ import os
 
 # https://docs.opencv.org/4.x/dc/dbb/tutorial_py_calibration.html
 
-def calibrate(chessboardSize, imgspath, savePath=''):
+def calibrate(gridSize, imgspath, prefix, savePath=''):
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
-    objp = np.zeros((chessboardSize[0] * chessboardSize[1], 3), np.float32)
-    objp[:,:2] = np.mgrid[0:chessboardSize[0], 0:chessboardSize[1]].T.reshape(-1, 2)
+    objp = np.zeros((gridSize[0] * gridSize[1], 3), np.float32)
+    objp[:,:2] = np.mgrid[0:gridSize[0], 0:gridSize[1]].T.reshape(-1, 2)
 
     objPoints = []
     imgPoints = []
 
-    images = os.listdir(imgspath)
+    images = sorted([p for p in os.listdir(imgspath) if p.startswith(prefix)])
 
     for imgName in images:
         img = cv2.imread(os.path.join(imgspath, imgName))

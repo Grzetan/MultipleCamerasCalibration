@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import cv2
+from singleCameraCircularGrid import calibrate
 
 # https://temugeb.github.io/opencv/python/2021/02/02/stereo-camera-calibration-and-triangulation.html
 
@@ -68,4 +69,9 @@ def stereo_calibrate(gridSize, mtx1, dist1, mtx2, dist2, imgspath):
 if __name__ == '__main__':
     gridSize = (19,13)
 
-    stereo_calibrate(gridSize, None, None, None, None, 'stereo-imgs')
+    retL, mtxL, distL, rvecsL, tvecsL = calibrate(gridSize, './stereo-imgs', 'left')
+    retR, mtxR, distR, rvecsR, tvecsR = calibrate(gridSize, './stereo-imgs', 'right')
+
+    R, T = stereo_calibrate(gridSize, mtxL, distL, mtxR, distR, 'stereo-imgs')
+    print(R)
+    print(T)

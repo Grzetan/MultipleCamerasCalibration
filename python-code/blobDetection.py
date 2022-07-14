@@ -27,7 +27,7 @@ class Line(object):
         return math.degrees(math.atan(self.a))
 
     def calculateUsingTwoPoints(self, blob1, blob2):
-        self.a = (blob1.y - blob2.y) / (blob1.x - blob2.x)
+        self.a = (blob1.y - blob2.y) / ((blob1.x - blob2.x) + 1e-8) # For numerical stability
         self.b = -self.a * blob1.x + blob1.y
 
     def __repr__(self):
@@ -138,8 +138,18 @@ while(bellow is not None):
 # Calculate rotation of each row and use average as camera's rotation
 angles = []
 for row in grid:
-    line = Line(0,0)
-    line.calculateUsingTwoPoints(row[0], row[len(row) - 1])
+    # Get line between every possible combination of points in row and take average of parameters as row's line
+    aSet = []
+    bSet = []
+    line = Line(0,0) # Parameters change
+    for i in range(len(row) - 1):
+        for j in range(i+1, len(row)):
+            line.calculateUsingTwoPoints(row[i], row[j])
+            aSet.append(line.a)
+            bSet.append(line.b)
+    
+    line.a = sum(aSet) / len(aSet)
+    line.b = sum(bSet) / len(bSet)
     angles.append(line.getTheta())
 
 print(f'CAMERA ROTATION: {sum(angles) / len(angles)}')

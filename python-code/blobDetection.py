@@ -2,7 +2,82 @@ import numpy as np
 import cv2
 import math
 
-im = cv2.imread('./sliced-imgs/rotatedRight.jpg')
+class Blob(object):
+    def __init__(self, x,y,idx):
+        self.x = x
+        self.y = y
+        self.idx = idx
+
+    def __repr__(self):
+        return f"Blob(x: {self.x}, y: {self.y}, idx: {self.idx})"
+
+class Line(object):
+    def __init__(self, a, b):
+        self.a = a
+        self.b = b
+
+    def calculateUsingOnePoint(self, blob, a):
+        self.a = a
+        self.b = -self.a * blob.x + blob.y
+        
+    def getY(self, x):
+        return self.a * x + self.b
+
+    def __repr__(self):
+        return f"Line(y = {self.a}x + {self.b})"
+
+def findClosestBlobs(currBlob, keypoints):
+    # Find index of closest blob
+    min_dist = 10000000
+    closestBlob = None
+    for blob in keypoints:
+        if blob.idx == currBlob.idx: continue
+        
+        dist = math.sqrt((blob.x - currBlob.x)**2 + (blob.y - currBlob.y)**2)
+        if dist < min_dist:
+            min_dist = dist
+            closestBlob = blob
+
+    # Get blobs that are closest (blob to the right, left, top and bottom side)
+    closest = []
+    for blob in keypoints:
+        if blob.idx == currBlob.idx: continue
+        dist = math.sqrt((blob.x - currBlob.x)**2 + (blob.y - currBlob.y)**2)
+        if abs(dist - min_dist) < 10:
+            closest.append(blob)
+
+    # Calculate relative position of closest blobs using two lines
+    
+    # Growing line crossing currBlob
+    growing = Line(1, 0)
+    growing.calculateUsingOnePoint(currBlob, 1)
+
+    # Decreasing line crossing currBlob
+    decreasing = Line(-1, 0)
+    decreasing.calculateUsingOnePoint(currBlob, -1)
+
+    left = None
+    right = None
+    top = None
+    bottom = None
+
+    for blob in closest:
+        # Calculate if blob is grater than lines
+        greaterThanGrowing = blob.y > growing.getY(blob.x)
+        greaterThanDecreasing = blob.y > decreasing.getY(blob.x)
+
+        if greaterThanDecreasing and not greaterThanGrowing:
+            right = blob
+        elif greaterThanGrowing and greaterThanDecreasing:
+            top = blob
+        elif not greaterThanGrowing and not greaterThanDecreasing:
+            bottom = blob
+        elif greaterThanGrowing and not greaterThanDecreasing:
+            left = blob
+
+    return [top, right, bottom, left]
+
+im = cv2.imread('./sliced-imgs/rotatedLeft.jpg')
 
 params = cv2.SimpleBlobDetector_Params()
 
@@ -17,30 +92,35 @@ else :
     detector = cv2.SimpleBlobDetector_create(params)
 
 detector.empty()
-keypoints = detector.detect(im)
+detections = detector.detect(im)
+keypoints = []
+
+for i, keypoint in enumerate(detections):
+    x,y = keypoint.pt
+    keypoints.append(Blob(x,-y,i))
 
 # Find index of top left blob on calibration plate
-idx = 0
+topLeft = None
 min_ = 1000000
 
-for i, keypoint in enumerate(keypoints):
-    x,y = keypoint.pt
-    if x+y < min_:
-        min_ = x+y
-        idx = i
+for blob in keypoints:
+    if blob.x + abs(blob.y) < min_:
+        min_ = blob.x + abs(blob.y)
+        topLeft = blob
 
-# Find index of blob to the right of top left blob
-min_dist = 10000000
-x, y = keypoints[idx].pt
-idx2 = 0
-for i, keypoint in enumerate(keypoints):
-    if i == idx: continue
-    x1, y1 = keypoints[i].pt
-    dist = math.sqrt((x1 - x)**2 + (y1 - y)**2)
-    if dist < min_dist:
-        min_dist = dist
-        idx2 = i
+closestBlobs = findClosestBlobs(topLeft, keypoints)
 
-im_with_keypoints = cv2.drawKeypoints(im, [keypoints[idx2]], np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+print(closestBlobs)
+
+det = []
+for i, detection in enumerate(detections):
+    if i == closestBlobs[1].idx:
+        det.append(detection)
+
+det.append(detections[topLeft.idx])
+
+# print(findClosestBlobs(keypoints[0], keypoints))
+
+im_with_keypoints = cv2.drawKeypoints(im, det, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 cv2.imshow("Keypoints", im_with_keypoints)
 cv2.waitKey(0)

@@ -77,6 +77,18 @@ def findClosestBlobs(currBlob, keypoints):
 
     return [top, right, bottom, left]
 
+# Get all blobs to the right of passed node and return this arrays along side with blob bellow
+def getRow(currBlob, keypoints):
+    closest = findClosestBlobs(currBlob, keypoints)
+    row = [currBlob]
+
+    # As long as there is a blob to the right
+    while closest[1] is not None:
+        row.append(closest[1])
+        closest = findClosestBlobs(closest[1], keypoints)
+
+    return row, findClosestBlobs(currBlob, keypoints)[2]
+
 im = cv2.imread('./sliced-imgs/rotatedLeft.jpg')
 
 params = cv2.SimpleBlobDetector_Params()
@@ -108,16 +120,17 @@ for blob in keypoints:
         min_ = blob.x + abs(blob.y)
         topLeft = blob
 
-closestBlobs = findClosestBlobs(topLeft, keypoints)
-
-print(closestBlobs)
+grid = []
+row, bellow = getRow(topLeft, keypoints)
+grid.append(row)
+while(bellow is not None):
+    row, bellow = getRow(bellow, keypoints)
+    grid.append(row)
 
 det = []
 for i, detection in enumerate(detections):
-    if i == closestBlobs[1].idx:
+    if i in [p.idx for p in grid[4]]:
         det.append(detection)
-
-det.append(detections[topLeft.idx])
 
 # print(findClosestBlobs(keypoints[0], keypoints))
 

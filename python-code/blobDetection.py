@@ -33,6 +33,35 @@ class Line(object):
     def __repr__(self):
         return f"Line(y = {self.a}x + {self.b})"
 
+def rotateImage(image, angleInDegrees):
+    h, w = image.shape[:2]
+    img_c = (w / 2, h / 2)
+
+    rot = cv2.getRotationMatrix2D(img_c, angleInDegrees, 1)
+
+    rad = math.radians(angleInDegrees)
+    sin = math.sin(rad)
+    cos = math.cos(rad)
+    b_w = int((h * abs(sin)) + (w * abs(cos)))
+    b_h = int((h * abs(cos)) + (w * abs(sin)))
+
+    rot[0, 2] += ((b_w / 2) - img_c[0])
+    rot[1, 2] += ((b_h / 2) - img_c[1])
+
+    outImg = cv2.warpAffine(image, rot, (b_w, b_h), flags=cv2.INTER_LINEAR)
+    return outImg
+
+def rotateKeypoints(keypoints, rotation, imgShape):
+    theta = math.radians(rotation)
+    # Calculate center of an image to know around what point we are rotating
+    h, w = imgShape[:2]
+    x0, y0 = (w / 2, -h / 2)
+    for point in keypoints:
+        point.x = math.cos(theta) * (point.x - x0) - math.sin(theta) * (point.y - y0) + x0
+        point.y = math.sin(theta) * (point.x - x0) + math.cos(theta) * (point.y - y0) + y0
+
+    return keypoints
+
 def findClosestBlobs(currBlob, keypoints):
     # Find index of closest blob
     min_dist = 10000000
@@ -97,70 +126,86 @@ def getRow(currBlob, keypoints):
 
     return row, findClosestBlobs(currBlob, keypoints)[2]
 
-im = cv2.imread('./sliced-imgs/rotatedLeft.jpg')
-
-params = cv2.SimpleBlobDetector_Params()
-
-params.minThreshold = 10
-params.maxThreshold = 100
-
-# Without this segmentation fault
-ver = (cv2.__version__).split('.')
-if int(ver[0]) < 3 :
-    detector = cv2.SimpleBlobDetector(params)
-else : 
-    detector = cv2.SimpleBlobDetector_create(params)
-
-detector.empty()
-detections = detector.detect(im)
-keypoints = []
-
-for i, keypoint in enumerate(detections):
-    x,y = keypoint.pt
-    keypoints.append(Blob(x,-y,i))
-
-# Find index of top left blob on calibration plate
-topLeft = None
-min_ = 1000000
-
-for blob in keypoints:
-    if blob.x + abs(blob.y) < min_:
-        min_ = blob.x + abs(blob.y)
-        topLeft = blob
-
-grid = []
-row, bellow = getRow(topLeft, keypoints)
-grid.append(row)
-while(bellow is not None):
-    row, bellow = getRow(bellow, keypoints)
+# Create grid using detected keypoints
+def createGrid(startingBlob, keypoints):
+    grid = []
+    row, bellow = getRow(startingBlob, keypoints)
     grid.append(row)
+    while(bellow is not None):
+        row, bellow = getRow(bellow, keypoints)
+        grid.append(row)
 
-# Calculate rotation of each row and use average as camera's rotation
-angles = []
-for row in grid:
-    # Get line between every possible combination of points in row and take average of parameters as row's line
-    aSet = []
-    bSet = []
-    line = Line(0,0) # Parameters change
-    for i in range(len(row) - 1):
-        for j in range(i+1, len(row)):
-            line.calculateUsingTwoPoints(row[i], row[j])
-            aSet.append(line.a)
-            bSet.append(line.b)
+    return grid
+
+# Get top left blob
+def getTopLeftBlob(detections):
+    topLeft = None
+    min_ = np.inf
+
+    for blob in keypoints:
+        if blob.x + abs(blob.y) < min_:
+            min_ = blob.x + abs(blob.y)
+            topLeft = blob
     
-    line.a = sum(aSet) / len(aSet)
-    line.b = sum(bSet) / len(bSet)
-    angles.append(line.getTheta())
+    return topLeft
 
-print(f'CAMERA ROTATION: {sum(angles) / len(angles)}')
+# Get camera rotation using detected grid
+def getRotation(grid):
+    # Calculate rotation of each row and use average as camera's rotation
+    angles = []
+    for row in grid:
+        # Get line between every possible combination of points in row and take average of parameters as row's line
+        aSet = []
+        bSet = []
+        line = Line(0,0) # Parameters change
+        for i in range(len(row) - 1):
+            for j in range(i+1, len(row)):
+                line.calculateUsingTwoPoints(row[i], row[j])
+                aSet.append(line.a)
+                bSet.append(line.b)
+        
+        line.a = sum(aSet) / len(aSet)
+        line.b = sum(bSet) / len(bSet)
+        angles.append(line.getTheta())
 
-det = []
-for i, detection in enumerate(detections):
-    if i in [p.idx for p in grid[4]]:
-        det.append(detection)
+    return sum(angles) / len(angles)
 
-# print(findClosestBlobs(keypoints[0], keypoints))
+if __name__ == '__main__':
+    im = cv2.imread('./sliced-imgs/rotatedLeft.jpg')
 
-im_with_keypoints = cv2.drawKeypoints(im, detections, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-cv2.imshow("Keypoints", im_with_keypoints)
-cv2.waitKey(0)
+    params = cv2.SimpleBlobDetector_Params()
+
+    params.minThreshold = 10
+    params.maxThreshold = 100
+
+    # Without this segmentation fault
+    ver = (cv2.__version__).split('.')
+    if int(ver[0]) < 3 :
+        detector = cv2.SimpleBlobDetector(params)
+    else : 
+        detector = cv2.SimpleBlobDetector_create(params)
+
+    detector.empty()
+    detections = detector.detect(im)
+    keypoints = []
+
+    for i, keypoint in enumerate(detections):
+        x,y = keypoint.pt
+        keypoints.append(Blob(x,-y,i))
+
+
+    startingBlob = getTopLeftBlob(keypoints)
+    grid = createGrid(startingBlob, keypoints)
+    rotation = getRotation(grid)
+    print(f'CAMERA ROTATION: {rotation}')
+    
+    # im = rotateImage(im, -rotation)
+    # keypoints = rotateKeypoints(keypoints, -rotation, im.shape)
+
+    # Rotate detection the same way as keypoints
+    for i, d in enumerate(detections):
+        d.pt = (keypoints[i].x, -keypoints[i].y)
+
+    im_with_keypoints = cv2.drawKeypoints(im, detections, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+    cv2.imshow("Keypoints", im_with_keypoints)
+    cv2.waitKey(0)

@@ -23,6 +23,13 @@ class Line(object):
     def getY(self, x):
         return self.a * x + self.b
 
+    def getTheta(self):
+        return math.degrees(math.atan(self.a))
+
+    def calculateUsingTwoPoints(self, blob1, blob2):
+        self.a = (blob1.y - blob2.y) / (blob1.x - blob2.x)
+        self.b = -self.a * blob1.x + blob1.y
+
     def __repr__(self):
         return f"Line(y = {self.a}x + {self.b})"
 
@@ -66,6 +73,7 @@ def findClosestBlobs(currBlob, keypoints):
         greaterThanGrowing = blob.y > growing.getY(blob.x)
         greaterThanDecreasing = blob.y > decreasing.getY(blob.x)
 
+        # Decide using calcuated flags relative position of each closest blob
         if greaterThanDecreasing and not greaterThanGrowing:
             right = blob
         elif greaterThanGrowing and greaterThanDecreasing:
@@ -127,6 +135,15 @@ while(bellow is not None):
     row, bellow = getRow(bellow, keypoints)
     grid.append(row)
 
+# Calculate rotation of each row and use average as camera's rotation
+angles = []
+for row in grid:
+    line = Line(0,0)
+    line.calculateUsingTwoPoints(row[0], row[len(row) - 1])
+    angles.append(line.getTheta())
+
+print(f'CAMERA ROTATION: {sum(angles) / len(angles)}')
+
 det = []
 for i, detection in enumerate(detections):
     if i in [p.idx for p in grid[4]]:
@@ -134,6 +151,6 @@ for i, detection in enumerate(detections):
 
 # print(findClosestBlobs(keypoints[0], keypoints))
 
-im_with_keypoints = cv2.drawKeypoints(im, det, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+im_with_keypoints = cv2.drawKeypoints(im, detections, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
 cv2.imshow("Keypoints", im_with_keypoints)
 cv2.waitKey(0)

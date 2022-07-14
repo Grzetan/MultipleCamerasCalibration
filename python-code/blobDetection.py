@@ -49,16 +49,15 @@ def rotateImage(image, angleInDegrees):
     rot[1, 2] += ((b_h / 2) - img_c[1])
 
     outImg = cv2.warpAffine(image, rot, (b_w, b_h), flags=cv2.INTER_LINEAR)
-    return outImg
+    return outImg, rot
 
-def rotateKeypoints(keypoints, rotation, imgShape):
-    theta = math.radians(rotation)
-    # Calculate center of an image to know around what point we are rotating
-    h, w = imgShape[:2]
-    x0, y0 = (w / 2, -h / 2)
-    for point in keypoints:
-        point.x = math.cos(theta) * (point.x - x0) - math.sin(theta) * (point.y - y0) + x0
-        point.y = math.sin(theta) * (point.x - x0) + math.cos(theta) * (point.y - y0) + y0
+def rotateKeypoints(keypoints, rotationMatrix):
+    # There are minuses because y coordinate is inverted to match euclidean space
+    for p in keypoints:
+        point = (p.x, -p.y)
+        rotatedPoint = rotationMatrix.dot(np.array(point + (1,)))
+        p.x = rotatedPoint[0]
+        p.y = -rotatedPoint[1]
 
     return keypoints
 
@@ -171,7 +170,7 @@ def getRotation(grid):
     return sum(angles) / len(angles)
 
 if __name__ == '__main__':
-    im = cv2.imread('./sliced-imgs/rotatedLeft.jpg')
+    im = cv2.imread('./sliced-imgs/rotatedRight.jpg')
 
     params = cv2.SimpleBlobDetector_Params()
 
@@ -199,8 +198,8 @@ if __name__ == '__main__':
     rotation = getRotation(grid)
     print(f'CAMERA ROTATION: {rotation}')
     
-    # im = rotateImage(im, -rotation)
-    # keypoints = rotateKeypoints(keypoints, -rotation, im.shape)
+    im, rotationMatrix = rotateImage(im, -rotation)
+    keypoints = rotateKeypoints(keypoints, rotationMatrix)
 
     # Rotate detection the same way as keypoints
     for i, d in enumerate(detections):

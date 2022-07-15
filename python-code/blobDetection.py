@@ -212,11 +212,15 @@ if __name__ == '__main__':
 
     detector.empty()
     
+    # Input grid size of calibration plate
     GRID_SIZE = (19, 13)
 
+    # Input distance between blobs in milimeters
+    BLOB_SPACING = 15
+
     PATH = './sliced-imgs/'
-    leftImgs = sorted([os.path.join(PATH, p) for p in os.listdir(PATH) if 'testleft' in p.lower()])
-    rightImgs = sorted([os.path.join(PATH, p) for p in os.listdir(PATH) if 'testright' in p.lower()])
+    leftImgs = sorted([os.path.join(PATH, p) for p in os.listdir(PATH) if 'left' in p.lower()])
+    rightImgs = sorted([os.path.join(PATH, p) for p in os.listdir(PATH) if 'right' in p.lower()])
 
     for left, right in zip(leftImgs, rightImgs):
         print("\n===== NEW SET OF IMAGES ======")
@@ -252,8 +256,8 @@ if __name__ == '__main__':
         rotationL = getRotation(gridL)
         rotationR = getRotation(gridR)
 
-        print(f'CAMERA ROTATION FOR LEFT: {rotationL}')
-        print(f'CAMERA ROTATION FOR RIGHT: {rotationR}')
+        print(f'LEFT CAMERA ROTATION: {rotationL}')
+        print(f'RIGHT CAMERA ROTATION: {rotationR}')
 
         # Rotate image and keypoints so grid is horizontal to X-axis
         imL, rotationMatrixL = rotateImage(imL, -rotationL)
@@ -269,8 +273,11 @@ if __name__ == '__main__':
         coveredAreaL = getCoveredArea(gridL, blobSpacingL, imL.shape[:2], 'LEFT')
         coveredAreaR = getCoveredArea(gridR, blobSpacingR, imR.shape[:2], 'RIGHT')
 
-        print(f'COVERED AREA LEFT: {round(coveredAreaL*100,2)}%')
-        print(f'COVERED AREA RIGHT: {round(coveredAreaR*100,2)}%')
+        # Calculate translation between cameras
+        translation = (coveredAreaL + coveredAreaR - 1) * -1
+        translationInMM = translation * ((GRID_SIZE[0]-1) * BLOB_SPACING)
+
+        print(f'TRANSLATION BETWEEN CAMERAS: {round(translationInMM,1)} mm')
 
         # Rotate detection the same way as keypoints
         for i, d in enumerate(detectionsL):

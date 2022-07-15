@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import math
+import os
 
 class Blob(object):
     def __init__(self, x,y,idx):
@@ -137,7 +138,7 @@ def createGrid(startingBlob, keypoints):
     return grid
 
 # Get top left blob
-def getTopLeftBlob(detections):
+def getTopLeftBlob(keypoints):
     topLeft = None
     min_ = np.inf
 
@@ -170,8 +171,6 @@ def getRotation(grid):
     return sum(angles) / len(angles)
 
 if __name__ == '__main__':
-    im = cv2.imread('./sliced-imgs/rotatedRight.jpg')
-
     params = cv2.SimpleBlobDetector_Params()
 
     params.minThreshold = 10
@@ -185,26 +184,65 @@ if __name__ == '__main__':
         detector = cv2.SimpleBlobDetector_create(params)
 
     detector.empty()
-    detections = detector.detect(im)
-    keypoints = []
-
-    for i, keypoint in enumerate(detections):
-        x,y = keypoint.pt
-        keypoints.append(Blob(x,-y,i))
-
-
-    startingBlob = getTopLeftBlob(keypoints)
-    grid = createGrid(startingBlob, keypoints)
-    rotation = getRotation(grid)
-    print(f'CAMERA ROTATION: {rotation}')
     
-    im, rotationMatrix = rotateImage(im, -rotation)
-    keypoints = rotateKeypoints(keypoints, rotationMatrix)
+    PATH = './sliced-imgs/'
+    leftImgs = sorted([os.path.join(PATH, p) for p in os.listdir(PATH) if 'left' in p.lower()])
+    rightImgs = sorted([os.path.join(PATH, p) for p in os.listdir(PATH) if 'right' in p.lower()])
 
-    # Rotate detection the same way as keypoints
-    for i, d in enumerate(detections):
-        d.pt = (keypoints[i].x, -keypoints[i].y)
+    for left, right in zip(leftImgs, rightImgs):
+        print("\n===== NEW SET OF IMAGES ======")
+        imL = cv2.imread(left)
+        imR = cv2.imread(right)
 
-    im_with_keypoints = cv2.drawKeypoints(im, detections, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-    cv2.imshow("Keypoints", im_with_keypoints)
-    cv2.waitKey(0)
+        # Detect blobs
+        detectionsL = detector.detect(imL)
+        detector.empty()
+        detectionsR = detector.detect(imR)
+
+        # Create list of detected keypoints
+        keypointsL = []
+        keypointsR = []
+
+        for i, keypoint in enumerate(detectionsL):
+            x,y = keypoint.pt
+            keypointsL.append(Blob(x,-y,i))
+
+        for i, keypoint in enumerate(detectionsR):
+            x,y = keypoint.pt
+            keypointsR.append(Blob(x,-y,i))
+
+        # Get top left blob in each image
+        startingBlobL = getTopLeftBlob(keypointsL)
+        startingBlobR = getTopLeftBlob(keypointsR)
+
+        # Create grids from detected keypoints
+        gridL = createGrid(startingBlobL, keypointsL)
+        gridR = createGrid(startingBlobR, keypointsR)
+
+        # Calculate rotation of each image
+        rotationL = getRotation(gridL)
+        rotationR = getRotation(gridR)
+
+        print(f'CAMERA ROTATION FOR LEFT: {rotationL}')
+        print(f'CAMERA ROTATION FOR RIGHT: {rotationR}')
+
+        # Rotate image and keypoints so grid is horizontal to X-axis
+        imL, rotationMatrixL = rotateImage(imL, -rotationL)
+        keypointsL = rotateKeypoints(keypointsL, rotationMatrixL)
+        imR, rotationMatrixR = rotateImage(imR, -rotationR)
+        keypointsR = rotateKeypoints(keypointsR, rotationMatrixR)
+
+        # Rotate detection the same way as keypoints
+        for i, d in enumerate(detectionsL):
+            d.pt = (keypointsL[i].x, -keypointsL[i].y)
+
+        for i, d in enumerate(detectionsR):
+            d.pt = (keypointsR[i].x, -keypointsR[i].y)
+
+        im_with_keypointsL = cv2.drawKeypoints(imL, detectionsL, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        im_with_keypointsR = cv2.drawKeypoints(imR, detectionsR, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
+        
+        cv2.imshow("KeypointsL", im_with_keypointsL)
+        cv2.imshow("KeypointsR", im_with_keypointsR)
+
+        cv2.waitKey(0)

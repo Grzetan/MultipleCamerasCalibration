@@ -62,6 +62,19 @@ def rotateKeypoints(keypoints, rotationMatrix):
 
     return keypoints
 
+# Get average distance between neighbour blobs
+def getBlobSpacing(grid):
+    distances = []
+    
+    for row in grid:
+        for i in range(len(row) - 1):
+            for j in range(i+1, len(row)):
+                distance = math.sqrt((row[i].x - row[j].x)**2 + (row[i].y - row[j].y)**2)
+                difference = abs(i-j)
+                distances.append(distance / difference)
+
+    return sum(distances) / len(distances)
+
 def findClosestBlobs(currBlob, keypoints):
     # Find index of closest blob
     min_dist = 10000000
@@ -232,6 +245,12 @@ if __name__ == '__main__':
         imR, rotationMatrixR = rotateImage(imR, -rotationR)
         keypointsR = rotateKeypoints(keypointsR, rotationMatrixR)
 
+        # Get average distance between neighbour blobs in grid
+        blobSpacingL = getBlobSpacing(gridL)
+        blobSpacingR = getBlobSpacing(gridR)
+
+        print(blobSpacingL, blobSpacingR)
+
         # Rotate detection the same way as keypoints
         for i, d in enumerate(detectionsL):
             d.pt = (keypointsL[i].x, -keypointsL[i].y)
@@ -241,7 +260,7 @@ if __name__ == '__main__':
 
         im_with_keypointsL = cv2.drawKeypoints(imL, detectionsL, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
         im_with_keypointsR = cv2.drawKeypoints(imR, detectionsR, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
-        
+
         cv2.imshow("KeypointsL", im_with_keypointsL)
         cv2.imshow("KeypointsR", im_with_keypointsR)
 

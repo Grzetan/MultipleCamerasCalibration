@@ -183,6 +183,20 @@ def getRotation(grid):
 
     return sum(angles) / len(angles)
 
+# Calculate how much of calibration plate is covered in image
+def getCoveredArea(grid, blobSpacing, shape, side):
+    h, w = shape
+    distances = []
+    for row in grid:
+        if side == 'LEFT':
+            distances.append(w - row[0].x)
+        else:
+            distances.append(row[len(row) - 1].x)
+    
+    avg = sum(distances) / len(distances)
+    blobsVisible = avg / blobSpacing
+    return blobsVisible / (GRID_SIZE[0] - 1)
+
 if __name__ == '__main__':
     params = cv2.SimpleBlobDetector_Params()
 
@@ -198,9 +212,11 @@ if __name__ == '__main__':
 
     detector.empty()
     
+    GRID_SIZE = (19, 13)
+
     PATH = './sliced-imgs/'
-    leftImgs = sorted([os.path.join(PATH, p) for p in os.listdir(PATH) if 'left' in p.lower()])
-    rightImgs = sorted([os.path.join(PATH, p) for p in os.listdir(PATH) if 'right' in p.lower()])
+    leftImgs = sorted([os.path.join(PATH, p) for p in os.listdir(PATH) if 'testleft' in p.lower()])
+    rightImgs = sorted([os.path.join(PATH, p) for p in os.listdir(PATH) if 'testright' in p.lower()])
 
     for left, right in zip(leftImgs, rightImgs):
         print("\n===== NEW SET OF IMAGES ======")
@@ -249,7 +265,12 @@ if __name__ == '__main__':
         blobSpacingL = getBlobSpacing(gridL)
         blobSpacingR = getBlobSpacing(gridR)
 
-        print(blobSpacingL, blobSpacingR)
+        # Calculate how much of calibration plate is covered on each image
+        coveredAreaL = getCoveredArea(gridL, blobSpacingL, imL.shape[:2], 'LEFT')
+        coveredAreaR = getCoveredArea(gridR, blobSpacingR, imR.shape[:2], 'RIGHT')
+
+        print(f'COVERED AREA LEFT: {round(coveredAreaL*100,2)}%')
+        print(f'COVERED AREA RIGHT: {round(coveredAreaR*100,2)}%')
 
         # Rotate detection the same way as keypoints
         for i, d in enumerate(detectionsL):
